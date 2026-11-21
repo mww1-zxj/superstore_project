@@ -2,7 +2,7 @@
 
 使用 Sample Superstore 的美国零售样例数据，分析销售和利润走势，找出亏损较多的子品类与折扣档，并比较地区、客户群体和发货方式。
 
-主文件为 [01_data_cleaning.ipynb](01_data_cleaning.ipynb)，MySQL 建表脚本为 [sql/create_sales_detail.sql](sql/create_sales_detail.sql)。原始数据覆盖 2014 年 1 月至 2017 年 12 月，一行代表一条商品销售明细，一笔订单可包含多条明细。
+主文件为 [01_data_cleaning.ipynb](01_data_cleaning.ipynb)，MySQL 脚本位于 `sql/` 目录：建表脚本 [sql/create_sales_detail.sql](sql/create_sales_detail.sql) 与核心业务分析脚本 [sql/analysis_queries.sql](sql/analysis_queries.sql)。原始数据覆盖 2014 年 1 月至 2017 年 12 月，一行代表一条商品销售明细，一笔订单可包含多条明细。
 
 ## 主要结果
 
@@ -69,6 +69,21 @@
 | `Profit Margin` | `double` | 衍生字段 | 单条明细利润率（`Profit / Sales`，小数形式；销售额为 0 时为 0） |
 | `Discount Band` | `varchar(20)` | 衍生字段 | 折扣分组：`无折扣`（0%）、`低折扣`（>0% 至 20%）、`中折扣`（>20% 至 40%）、`高折扣`（>40% 至 100%） |
 
+## SQL 业务分析脚本
+
+分析查询位于 [sql/analysis_queries.sql](sql/analysis_queries.sql)（默认查询 `superstore.sales_detail`，适用于 MySQL 8.0+），用于复核 Python 清洗结果并围绕亏损子品类与履约效率做进一步下钻：
+
+| 序号 | 分析模块 | 主要内容与 SQL 要点 |
+|---:|---|---|
+| 1 | 整体指标核对 | 汇总明细行数、去重订单数与客户数、总销量、销售额、利润、整体利润率、客单价与亏损明细占比，与 Notebook 结果对齐 |
+| 2 | 月度趋势与同比（YoY） | 使用 CTE 汇总月度订单/销售/利润，再自关联去年同月计算销售额同比增长率 |
+| 3 | 商品大类对比 | 按 `Category` 统计订单数、销售额、利润与利润率，按利润降序排列 |
+| 4 | 折扣档表现 | 按 `Discount Band` 同时计算档内加权利润率（`band_margin_pct`）与单条明细算术平均利润率（`avg_detail_margin_pct`） |
+| 5 | 亏损 Top 10 州 | 按地区与州汇总，筛选 `SUM(Profit) < 0` 的亏损州，列出亏损金额最大的前 10 个 |
+| 6 | Tables 子品类地区下钻 | 聚焦最大亏损子品类 `Tables`，按 `Region` 拆解订单数、销售额、利润与利润率，定位重灾区 |
+| 7 | 各地区亏损 Top 3 Tables 商品 | 使用 CTE 与 `DENSE_RANK() OVER (PARTITION BY region ORDER BY total_profit ASC)` 找出各地区亏损最多的 3 款 `Tables` 商品，保留并列名次 |
+| 8 | 发货方式耗时对比（订单口径） | 先按 `Order ID`、`Ship Mode` 聚合去重再求平均发货天数，确保每笔订单只计一次（与 Notebook 中按商品明细计算的口径形成对照） |
+
 ## 本地复现
 
 1. 从数据来源下载并解压 `Sample - Superstore.csv`，放到项目根目录的 `data/raw/` 中。保留原文件名，Notebook 使用 Windows-1252 编码读取。[Kaggle 数据来源](https://www.kaggle.com/datasets/vivek468/superstore-dataset-final)
@@ -89,4 +104,4 @@
    df.to_csv(output, index=False, encoding="utf-8", date_format="%Y-%m-%d")
    ```
 
-5. 导入 MySQL：先在目标数据库中执行 [sql/create_sales_detail.sql](sql/create_sales_detail.sql) 创建 `sales_detail` 表，再通过 MySQL Workbench、DBeaver 或 `LOAD DATA LOCAL INFILE` 导入 `data/processed/superstore_clean.csv`（编码选择 UTF-8，字段分隔符 `,`，跳过首行表头）。导入完成后可执行 `SELECT COUNT(*) FROM sales_detail;` 校验记录数为 9,994 条。
+5. 导入 MySQL 并运行分析查询：先在 `superstore` 数据库中执行 [sql/create_sales_detail.sql](sql/create_sales_detail.sql) 创建 `sales_detail` 表，再通过 Sequel Ace、MySQL Workbench、DBeaver 或 `LOAD DATA LOCAL INFILE` 导入 `data/processed/superstore_clean.csv`（编码选择 UTF-8，字段分隔符 `,`，跳过首行表头）。导入完成后依次运行 [sql/analysis_queries.sql](sql/analysis_queries.sql) 中的 8 个查询，其中第 1 条查询可与 Notebook 核心指标核对（9,994 条明细、5,009 笔订单、793 位客户）。
