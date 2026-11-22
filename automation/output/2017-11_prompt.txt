@@ -1,0 +1,178 @@
+=== SYSTEM PROMPT ===
+你是一位严谨、擅长商业汇报的资深零售数据分析师。
+你的任务是根据程序精准算出的 JSON 经营指标，为业务管理层撰写一份简洁、专业、可直接用于周会/月会汇报的《月度经营诊断简报》。
+
+必须严格遵守以下规则：
+1. 【零幻觉红线】严禁编造、猜测或自行推算 JSON 中未给出的任何数字；引用的所有金额、百分比、订单数必须与 JSON 完全一致。
+2. 【结论先行】用业务语言表达，先抛核心结论再给数据支撑，避免像流水账一样把 JSON 逐行翻译一遍。
+3. 【聚焦归因与行动】重点把“亏损子品类 / 异常地区 / 高折扣档”之间的关联串起来，给出 2～3 条具体、可落地的下月优化建议。
+4. 【输出格式】使用清晰的 Markdown 格式，严格包含以下 4 个一级/二级板块：
+   - 一、核心经营概览（3 句话内说清大盘、同环比与利润率健康度）
+   - 二、亮点与风险预警（分点列出核心增长引擎与异常出血点）
+   - 三、亏损与折扣归因诊断（结合折扣档、区域及亏损单品分析原因）
+   - 四、下月优先行动建议（2～3 条可落地的业务动作，说明对象与预期目标）
+
+
+=== USER PROMPT ===
+以下是 2017-11 的零售经营精准核算数据（单位：美元 USD），请据此生成《2017-11 零售经营诊断月报》：
+
+```json
+{
+  "report_month": "2017-11",
+  "currency": "USD ($)",
+  "overview": {
+    "sales": 118447.83,
+    "profit": 9690.1,
+    "profit_margin_pct": 8.18,
+    "historical_avg_margin_pct": 12.47,
+    "unique_orders": 261,
+    "aov": 453.82,
+    "avg_discount_pct": 16.1,
+    "sales_mom_pct": 52.29,
+    "profit_mom_pct": 4.47,
+    "sales_yoy_pct": 49.16,
+    "profit_yoy_pct": 141.56
+  },
+  "regions": [
+    {
+      "region": "South",
+      "sales": 28717.42,
+      "profit": -1624.81,
+      "profit_margin_pct": -5.66,
+      "orders": 49,
+      "avg_discount_pct": 18.81
+    },
+    {
+      "region": "Central",
+      "sales": 15154.98,
+      "profit": -1518.6,
+      "profit_margin_pct": -10.02,
+      "orders": 61,
+      "avg_discount_pct": 23.4
+    },
+    {
+      "region": "West",
+      "sales": 28941.79,
+      "profit": 3443.25,
+      "profit_margin_pct": 11.9,
+      "orders": 77,
+      "avg_discount_pct": 10.32
+    },
+    {
+      "region": "East",
+      "sales": 45633.64,
+      "profit": 9390.26,
+      "profit_margin_pct": 20.58,
+      "orders": 74,
+      "avg_discount_pct": 14.5
+    }
+  ],
+  "discount_bands": [
+    {
+      "discount_band": "无折扣",
+      "line_items": 212,
+      "sales": 54390.26,
+      "profit": 16853.39,
+      "profit_margin_pct": 30.99
+    },
+    {
+      "discount_band": "低折扣",
+      "line_items": 181,
+      "sales": 40323.57,
+      "profit": 3614.66,
+      "profit_margin_pct": 8.96
+    },
+    {
+      "discount_band": "中折扣",
+      "line_items": 25,
+      "sales": 12340.64,
+      "profit": -2401.02,
+      "profit_margin_pct": -19.46
+    },
+    {
+      "discount_band": "高折扣",
+      "line_items": 41,
+      "sales": 11393.35,
+      "profit": -8376.93,
+      "profit_margin_pct": -73.52
+    }
+  ],
+  "worst_sub_categories": [
+    {
+      "sub_category": "Machines",
+      "sales": 11761.38,
+      "profit": -4495.83,
+      "profit_margin_pct": -38.23,
+      "avg_discount_pct": 38.33
+    },
+    {
+      "sub_category": "Tables",
+      "sales": 13658.69,
+      "profit": -1176.37,
+      "profit_margin_pct": -8.61,
+      "avg_discount_pct": 25.29
+    },
+    {
+      "sub_category": "Binders",
+      "sales": 6490.56,
+      "profit": -973.18,
+      "profit_margin_pct": -14.99,
+      "avg_discount_pct": 41.9
+    }
+  ],
+  "top_profit_sub_categories": [
+    {
+      "sub_category": "Copiers",
+      "sales": 12359.94,
+      "profit": 5426.98,
+      "profit_margin_pct": 43.91
+    },
+    {
+      "sub_category": "Phones",
+      "sales": 17407.14,
+      "profit": 2562.66,
+      "profit_margin_pct": 14.72
+    },
+    {
+      "sub_category": "Accessories",
+      "sales": 8390.32,
+      "profit": 2181.12,
+      "profit_margin_pct": 26.0
+    }
+  ],
+  "worst_loss_orders": [
+    {
+      "product_name": "Cubify CubeX 3D Printer Triple Head Print",
+      "sub_category": "Machines",
+      "region": "South",
+      "sales": 7999.98,
+      "profit": -3839.99,
+      "discount_pct": 50.0
+    },
+    {
+      "product_name": "Fellowes PB500 Electric Punch Plastic Comb Binding Machine with Manual Bind",
+      "sub_category": "Binders",
+      "region": "Central",
+      "sales": 1525.19,
+      "profit": -2287.78,
+      "discount_pct": 80.0
+    },
+    {
+      "product_name": "Epson TM-T88V Direct Thermal Printer - Monochrome - Desktop",
+      "sub_category": "Machines",
+      "region": "East",
+      "sales": 653.0,
+      "profit": -935.96,
+      "discount_pct": 70.0
+    }
+  ],
+  "auto_alerts": [
+    "当月综合利润率 8.18% 低于历史均值 12.47%（差值 -4.29 个百分点）",
+    "South 区域利润偏低（利润 $-1624.81，利润率 -5.66%，平均折扣 18.81%）",
+    "Central 区域利润偏低（利润 $-1518.6，利润率 -10.02%，平均折扣 23.4%）",
+    "子品类 Machines 当月亏损 $4495.83（平均折扣 38.33%）",
+    "子品类 Tables 当月亏损 $1176.37（平均折扣 25.29%）",
+    "子品类 Binders 当月亏损 $973.18（平均折扣 41.9%）"
+  ]
+}
+```

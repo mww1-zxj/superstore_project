@@ -2,7 +2,7 @@
 
 使用 Sample Superstore 的美国零售样例数据，分析销售和利润走势，找出亏损较多的子品类与折扣档，并比较地区、客户群体和发货方式。
 
-主文件为 [01_data_cleaning.ipynb](01_data_cleaning.ipynb)，MySQL 脚本位于 `sql/` 目录：建表脚本 [sql/create_sales_detail.sql](sql/create_sales_detail.sql) 与核心业务分析脚本 [sql/analysis_queries.sql](sql/analysis_queries.sql)。原始数据覆盖 2014 年 1 月至 2017 年 12 月，一行代表一条商品销售明细，一笔订单可包含多条明细。
+主文件为 [01_data_cleaning.ipynb](01_data_cleaning.ipynb)，MySQL 脚本位于 `sql/` 目录：建表脚本 [sql/create_sales_detail.sql](sql/create_sales_detail.sql) 与核心业务分析脚本 [sql/analysis_queries.sql](sql/analysis_queries.sql)；自动化经营月报模块位于 `automation/` 目录：[automation/generate_monthly_report.py](automation/generate_monthly_report.py)。原始数据覆盖 2014 年 1 月至 2017 年 12 月，一行代表一条商品销售明细，一笔订单可包含多条明细。
 
 ## 主要结果
 
@@ -84,6 +84,14 @@
 | 7 | 各地区亏损 Top 3 Tables 商品 | 使用 CTE 与 `DENSE_RANK() OVER (PARTITION BY region ORDER BY total_profit ASC)` 找出各地区亏损最多的 3 款 `Tables` 商品，保留并列名次 |
 | 8 | 发货方式耗时对比（订单口径） | 先按 `Order ID`、`Ship Mode` 聚合去重再求平均发货天数，确保每笔订单只计一次（与 Notebook 中按商品明细计算的口径形成对照） |
 
+## 自动化经营诊断月报（Python + 大模型 API）
+
+为了将月度经营复盘从重复人工整理升级为可复用的自动化流程，新增了 `automation/` 模块（说明文档见 [automation/README.md](automation/README.md)），核心遵循 **「算归算、写归写」** 的防幻觉设计：
+
+- **Python 精准核算层**（[automation/generate_monthly_report.py](automation/generate_monthly_report.py)）：输入任意年月（`2014-01` 至 `2017-12`），使用 Pandas 精确计算当月大盘指标（销售额、利润、综合利润率、订单数、客单价、环比/同比）、各地区与各折扣档表现、亏损 Top 3 子品类及单笔最大亏损明细，同时通过确定性业务规则自动生成风险预警清单（`auto_alerts`），输出为结构化 JSON（示例见 [automation/output/2017-11_metrics.json](automation/output/2017-11_metrics.json)）。
+- **防幻觉 Prompt 与 API 自动撰写层**：将 JSON 指标包注入受约束的系统提示词（明确禁止编造 JSON 之外的任何数字，设置 `temperature=0.2`），通过标准 `requests` 调用兼容 OpenAI 协议的大模型接口（默认适配 DeepSeek，支持一键切换通义千问、智谱 GLM 等），自动输出包含「核心经营概览 / 亮点与风险预警 / 亏损与折扣归因诊断 / 下月优先行动建议」的 Markdown 管理层月报（示例见 [automation/output/2017-11_sample_report.md](automation/output/2017-11_sample_report.md)）。
+- **双模式运行与一致性校验**：未配置 API Key 时自动以离线演练模式导出 `metrics.json` 与 `prompt.txt`（[2017-11_prompt.txt](automation/output/2017-11_prompt.txt)）；直连 API 生成报告后，脚本自动核验核心利润率与主要亏损品类是否被准确覆盖。
+
 ## 本地复现
 
 1. 从数据来源下载并解压 `Sample - Superstore.csv`，放到项目根目录的 `data/raw/` 中。保留原文件名，Notebook 使用 Windows-1252 编码读取。[Kaggle 数据来源](https://www.kaggle.com/datasets/vivek468/superstore-dataset-final)
@@ -105,3 +113,13 @@
    ```
 
 5. 导入 MySQL 并运行分析查询：先在 `superstore` 数据库中执行 [sql/create_sales_detail.sql](sql/create_sales_detail.sql) 创建 `sales_detail` 表，再通过 Sequel Ace、MySQL Workbench、DBeaver 或 `LOAD DATA LOCAL INFILE` 导入 `data/processed/superstore_clean.csv`（编码选择 UTF-8，字段分隔符 `,`，跳过首行表头）。导入完成后依次运行 [sql/analysis_queries.sql](sql/analysis_queries.sql) 中的 8 个查询，其中第 1 条查询可与 Notebook 核心指标核对（9,994 条明细、5,009 笔订单、793 位客户）。
+6. 运行自动化经营诊断月报（依赖 `pandas`、`requests`）：
+
+   ```bash
+   # 离线演练模式（无需 API Key，生成精准指标 JSON 与防幻觉 Prompt）
+   python3 automation/generate_monthly_report.py 2017-11
+
+   # API 全自动生成模式（兼容 DeepSeek / 通义千问 / 智谱等 OpenAI 协议接口）
+   export LLM_API_KEY="sk-your-api-key"
+   python3 automation/generate_monthly_report.py 2017-11
+   ```
